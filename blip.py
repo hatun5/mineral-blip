@@ -38,6 +38,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ استخدم نسخة أخف من BLIP
 processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
 blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
 
@@ -52,10 +53,13 @@ async def get_caption(
     image_bytes = await file.read()
     image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
 
+    # ✅ صغر حجم الصورة قبل المعالجة
+    image = image.resize((256, 256))
+
     blip_inputs = processor(image, return_tensors="pt")
     blip_output = blip_model.generate(
         **blip_inputs,
-        max_new_tokens=100,
+        max_new_tokens=50,  # ✅ قلل عدد التوكنات
         do_sample=False,
         top_p=1.0,
         temperature=0.0
