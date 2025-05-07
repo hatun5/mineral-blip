@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MineralBLIP & lamaa</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 2rem;
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      color: #333;
+    }
+    .container {
+      display: flex;
+      flex-direction: row;
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .left-section, .right-section {
+      flex: 1;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 1rem;
+    }
+    input[type="file"], input[type="text"] {
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid #ccc;
+      margin-bottom: 0.5rem;
+    }
+    button {
+      background-color: #666;
+      color: white;
+      border: none;
+      padding: 0.6rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      width: fit-content;
+    }
+    button:hover {
+      background-color: #444;
+    }
+    #previewImage {
+      max-width: 100%;
+      max-height: 300px;
+      display: none;
+      border: 1px solid #ddd;
+      border-radius: 0.5rem;
+      margin-top: 1rem;
+    }
+    pre {
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .example-section {
+      max-width: 1200px;
+      margin: 2rem auto;
+    }
+    .example-images img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 0.5rem;
+      border: 1px solid #ccc;
+      margin: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>MineralBLIP & lamaa</h2>
+  <div class="container">
+    <div class="left-section">
+      <form id="chatForm">
+        <div class="input-group">
+          <input type="text" name="chatPrompt" placeholder="Ask your question here">
+          <button type="submit">Submit Question</button>
+        </div>
+      </form>
+      <pre id="chatResponse"></pre>
+    </div>
+
+    <div class="right-section">
+      <form id="uploadForm" enctype="multipart/form-data">
+        <div class="input-group">
+          <input type="file" name="file" id="fileInput" accept="image/*">
+          <button type="submit">Generate Label & Caption</button>
+        </div>
+        <img id="previewImage" src="" alt="Preview">
+      </form>
+      <pre id="formattedResponse"></pre>
+    </div>
+  </div>
+
+  <div class="example-section">
+    <h3>Try one of these example images:</h3>
+    <div class="example-images" id="exampleImages"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const chatForm = document.getElementById('chatForm');
+    const fileInput = document.getElementById('fileInput');
+    const previewImage = document.getElementById('previewImage');
+    const formattedResponseEl = document.getElementById('formattedResponse');
+    const chatResponseEl = document.getElementById('chatResponse');
+    const exampleImages = document.getElementById('exampleImages');
+
+    const examplePaths = [
+      "/static/chrysocolla.jpg",
+      "/static/malachite.jpg",
+      "/static/muscovite.jpg",
+      "/static/pyrite.jpg",
+      "/static/quartz.jpg"
+    ];
+    let selectedExampleBlob = null;
+
+    examplePaths.forEach(path => {
+      const img = document.createElement('img');
+      img.src = path;
+      img.addEventListener('click', async () => {
+        const response = await fetch(path);
+        const blob = await response.blob();
+        selectedExampleBlob = blob;
+        previewImage.src = path;
+        previewImage.style.display = 'block';
+        fileInput.value = '';
+      });
+      exampleImages.appendChild(img);
+    });
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (file) {
+        previewImage.src = URL.createObjectURL(file);
+        previewImage.style.display = 'block';
+        selectedExampleBlob = null;
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      if (selectedExampleBlob) {
+        formData.append('file', selectedExampleBlob, 'example.jpg');
+      } else if (fileInput.files.length > 0) {
+        formData.append('file', fileInput.files[0]);
+      } else {
+        alert('Please select a file.');
+        return;
+      }
+      formData.append("prompt", "");
+      formData.append("mode", "caption");  
+
+      const response = await fetch("/caption", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      formattedResponseEl.innerText = result.formatted_response || "No response.";
+    });
+
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const chatInput = document.querySelector('input[name="chatPrompt"]').value;
+      const formData = new FormData();
+      formData.append("prompt", chatInput);
+      const response = await fetch("/chat", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      chatResponseEl.innerText = result.answer || "No answer.";
+    });
+  </script>
+</body>
+</html>
